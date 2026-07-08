@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Card History</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Georgia', serif;
+      background: #f7f4ef;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a1a;
+      color: #f7f4ef;
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    header .logo {
+      font-size: 1.4rem;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+      color: #c9a84c;
+    }
+
+    header .subtitle {
+      font-size: 0.8rem;
+      color: #999;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    .card-header {
+      background: #fff;
+      border-left: 4px solid #c9a84c;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    .card-header h1 {
+      font-size: 1.6rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .card-header p {
+      color: #666;
+      font-size: 0.95rem;
+      font-style: italic;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-box {
+      background: #fff;
+      padding: 1.2rem;
+      text-align: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    .stat-box .value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #c9a84c;
+    }
+
+    .stat-box .label {
+      font-size: 0.75rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 0.2rem;
+    }
+
+    .section {
+      background: #fff;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    .section h2 {
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #888;
+      margin-bottom: 1.2rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 220px;
+    }
+
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .timeline-entry {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .timeline-entry .thumb {
+      width: 90px;
+      height: 90px;
+      object-fit: cover;
+      background: #eee;
+      display: block;
+      cursor: pointer;
+    }
+
+    .timeline-entry .thumb-placeholder {
+      width: 90px;
+      height: 90px;
+      background: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #bbb;
+      font-size: 0.7rem;
+    }
+
+    .entry-info .price {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #1a1a1a;
+    }
+
+    .entry-info .meta {
+      font-size: 0.8rem;
+      color: #888;
+      margin: 0.2rem 0;
+    }
+
+    .entry-info .notes {
+      font-size: 0.9rem;
+      color: #444;
+      margin-top: 0.3rem;
+      font-style: italic;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 0.5rem 0;
+    }
+
+    /* Submission form */
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      margin-bottom: 0.4rem;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea {
+      width: 100%;
+      padding: 0.7rem 0.9rem;
+      border: 1px solid #ddd;
+      background: #fafafa;
+      font-family: inherit;
+      font-size: 1rem;
+      color: #1a1a1a;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    textarea:focus {
+      border-color: #c9a84c;
+      background: #fff;
+    }
+
+    textarea { resize: vertical; min-height: 80px; }
+
+    .photo-upload-area {
+      border: 2px dashed #ddd;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: #fafafa;
+    }
+
+    .photo-upload-area:hover {
+      border-color: #c9a84c;
+      background: #fffdf5;
+    }
+
+    .photo-upload-area input {
+      display: none;
+    }
+
+    .photo-upload-area .upload-text {
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    .photo-upload-area .upload-text span {
+      color: #c9a84c;
+      font-weight: bold;
+    }
+
+    #photo-preview {
+      max-width: 100%;
+      max-height: 200px;
+      margin-top: 1rem;
+      display: none;
+    }
+
+    .submit-btn {
+      background: #1a1a1a;
+      color: #f7f4ef;
+      border: none;
+      padding: 0.9rem 2rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s;
+    }
+
+    .submit-btn:hover { background: #c9a84c; color: #1a1a1a; }
+    .submit-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    .message {
+      padding: 0.8rem 1rem;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .message.success { background: #e8f5e9; color: #2e7d32; border-left: 3px solid #2e7d32; }
+    .message.error { background: #fdecea; color: #c62828; border-left: 3px solid #c62828; }
+
+    /* Lightbox */
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .lightbox.open { display: flex; }
+
+    .lightbox img {
+      max-width: 90vw;
+      max-height: 90vh;
+      object-fit: contain;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      color: #fff;
+      font-size: 2rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .loading { color: #888; font-style: italic; padding: 1rem 0; }
+
+    .empty { color: #bbb; font-style: italic; font-size: 0.9rem; }
+
+    @media (max-width: 500px) {
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .timeline-entry { grid-template-columns: 70px 1fr; }
+      .timeline-entry .thumb,
+      .timeline-entry .thumb-placeholder { width: 70px; height: 70px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">CardTrack</div>
+    <div class="subtitle">Transaction History</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Card Info -->
+  <div class="card-header" id="card-header">
+    <p class="loading">Loading card...</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="value" id="stat-count">—</div>
+      <div class="label">Transactions</div>
+    </div>
+    <div class="stat-box">
+      <div class="value" id="stat-low">—</div>
+      <div class="label">Lowest Price</div>
+    </div>
+    <div class="stat-box">
+      <div class="value" id="stat-high">—</div>
+      <div class="label">Highest Price</div>
+    </div>
+  </div>
+
+  <!-- Price Chart -->
+  <div class="section">
+    <h2>Price Over Time</h2>
+    <div class="chart-container">
+      <canvas id="price-chart"></canvas>
+    </div>
+  </div>
+
+  <!-- Transaction History -->
+  <div class="section">
+    <h2>Transaction History</h2>
+    <div class="timeline" id="timeline">
+      <p class="loading">Loading transactions...</p>
+    </div>
+  </div>
+
+  <!-- Submit Transaction -->
+  <div class="section">
+    <h2>Record a Transaction</h2>
+    <p style="font-size:0.9rem; color:#666; margin-bottom:1.2rem;">
+      Scanned this card and made a deal? Record it here. Include a photo of you holding the card as proof of the transaction.
+    </p>
+
+    <div class="form-group">
+      <label for="price">Price (USD) *</label>
+      <input type="number" id="price" placeholder="e.g. 45.00" step="0.01" min="0" />
+    </div>
+
+    <div class="form-group">
+      <label for="submitter">Your Name (optional)</label>
+      <input type="text" id="submitter" placeholder="e.g. Mike" />
+    </div>
+
+    <div class="form-group">
+      <label for="notes">Notes (optional)</label>
+      <textarea id="notes" placeholder="e.g. Sold at the regional show, great condition"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Photo — hold the card and snap a pic *</label>
+      <div class="photo-upload-area" onclick="document.getElementById('photo-input').click()">
+        <input type="file" id="photo-input" accept="image/*" onchange="previewPhoto(event)" />
+        <div class="upload-text">Tap to <span>choose a photo</span> or take one with your camera</div>
+        <img id="photo-preview" alt="Preview" />
+      </div>
+    </div>
+
+    <button class="submit-btn" id="submit-btn" onclick="submitTransaction()">Record Transaction</button>
+    <div class="message" id="form-message"></div>
+  </div>
+
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <span class="lightbox-close">&times;</span>
+  <img id="lightbox-img" src="" alt="Full size" />
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://xtwcqxnrpfxgxrogidqo.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_-G0J-7yyw-rA0w3pJCch1w_0Ynioete';
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Get card ID from URL
+  const params = new URLSearchParams(window.location.search);
+  const cardId = params.get('id');
+
+  let chartInstance = null;
+  let selectedFile = null;
+
+  async function init() {
+    if (!cardId) {
+      document.getElementById('card-header').innerHTML = '<p style="color:#c00">No card ID found in URL. Please scan a valid QR code.</p>';
+      return;
+    }
+    await loadCard();
+    await loadTransactions();
+  }
+
+  async function loadCard() {
+    const { data, error } = await client
+      .from('cards')
+      .select('*')
+      .eq('id', cardId)
+      .single();
+
+    if (error || !data) {
+      document.getElementById('card-header').innerHTML = '<p style="color:#c00">Card not found.</p>';
+      return;
+    }
+
+    document.title = data.name + ' — CardTrack';
+    document.getElementById('card-header').innerHTML = `
+      <h1>${data.name}</h1>
+      ${data.description ? `<p>${data.description}</p>` : ''}
+    `;
+  }
+
+  async function loadTransactions() {
+    const { data, error } = await client
+      .from('transections')
+      .select('*')
+      .eq('card_id', cardId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      document.getElementById('timeline').innerHTML = '<p class="empty">Could not load transactions.</p>';
+      return;
+    }
+
+    updateStats(data);
+    renderChart(data);
+    renderTimeline(data);
+  }
+
+  function updateStats(data) {
+    if (!data || data.length === 0) {
+      document.getElementById('stat-count').textContent = '0';
+      document.getElementById('stat-low').textContent = '—';
+      document.getElementById('stat-high').textContent = '—';
+      return;
+    }
+    const prices = data.map(t => parseFloat(t.price));
+    document.getElementById('stat-count').textContent = data.length;
+    document.getElementById('stat-low').textContent = '$' + Math.min(...prices).toFixed(2);
+    document.getElementById('stat-high').textContent = '$' + Math.max(...prices).toFixed(2);
+  }
+
+  function renderChart(data) {
+    const ctx = document.getElementById('price-chart').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+
+    if (!data || data.length === 0) {
+      ctx.fillStyle = '#bbb';
+      ctx.font = '14px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText('No transactions yet', ctx.canvas.width / 2, 100);
+      return;
+    }
+
+    const labels = data.map(t => new Date(t.created_at).toLocaleDateString());
+    const prices = data.map(t => parseFloat(t.price));
+
+    chartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Price (USD)',
+          data: prices,
+          borderColor: '#c9a84c',
+          backgroundColor: 'rgba(201,168,76,0.1)',
+          pointBackgroundColor: '#1a1a1a',
+          pointRadius: 5,
+          tension: 0.2,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            ticks: { callback: v => '$' + v },
+            grid: { color: '#eee' }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  function renderTimeline(data) {
+    const el = document.getElementById('timeline');
+    if (!data || data.length === 0) {
+      el.innerHTML = '<p class="empty">No transactions recorded yet. Be the first!</p>';
+      return;
+    }
+
+    // Show newest first
+    const sorted = [...data].reverse();
+    el.innerHTML = sorted.map((t, i) => {
+      const date = new Date(t.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      const photoHtml = t.photo_url
+        ? `<img class="thumb" src="${t.photo_url}" alt="Transaction photo" onclick="openLightbox('${t.photo_url}')" />`
+        : `<div class="thumb-placeholder">No photo</div>`;
+
+      return `
+        <div class="timeline-entry">
+          ${photoHtml}
+          <div class="entry-info">
+            <div class="price">$${parseFloat(t.price).toFixed(2)}</div>
+            <div class="meta">${date}${t.submitter_name ? ' · ' + t.submitter_name : ''}</div>
+            ${t.notes ? `<div class="notes">"${t.notes}"</div>` : ''}
+          </div>
+        </div>
+        ${i < sorted.length - 1 ? '<hr class="divider" />' : ''}
+      `;
+    }).join('');
+  }
+
+  function previewPhoto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    selectedFile = file;
+    const preview = document.getElementById('photo-preview');
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    document.querySelector('.upload-text').style.display = 'none';
+  }
+
+  async function submitTransaction() {
+    const price = document.getElementById('price').value.trim();
+    const submitter = document.getElementById('submitter').value.trim();
+    const notes = document.getElementById('notes').value.trim();
+    const msgEl = document.getElementById('form-message');
+    const btn = document.getElementById('submit-btn');
+
+    msgEl.style.display = 'none';
+
+    if (!price || isNaN(price) || parseFloat(price) <= 0) {
+      showMessage('Please enter a valid price.', 'error');
+      return;
+    }
+    if (!selectedFile) {
+      showMessage('Please attach a photo of you holding the card.', 'error');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Uploading photo...';
+
+    // Upload photo to Supabase Storage
+    let photoUrl = null;
+    try {
+      const ext = selectedFile.name.split('.').pop();
+      const filename = `${cardId}/${Date.now()}.${ext}`;
+      const { data: uploadData, error: uploadError } = await client.storage
+        .from('transaction-photos')
+        .upload(filename, selectedFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = client.storage
+        .from('transaction-photos')
+        .getPublicUrl(filename);
+
+      photoUrl = urlData.publicUrl;
+    } catch (err) {
+      showMessage('Photo upload failed: ' + err.message, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Record Transaction';
+      return;
+    }
+
+    btn.textContent = 'Saving transaction...';
+
+    // Insert transaction
+    const { error } = await client.from('transections').insert({
+      card_id: cardId,
+      price: parseFloat(price),
+      photo_url: photoUrl,
+      submitter_name: submitter || null,
+      notes: notes || null,
+    });
+
+    if (error) {
+      showMessage('Failed to save transaction: ' + error.message, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Record Transaction';
+      return;
+    }
+
+    showMessage('Transaction recorded! Thank you.', 'success');
+    btn.textContent = 'Record Transaction';
+    btn.disabled = false;
+
+    // Reset form
+    document.getElementById('price').value = '';
+    document.getElementById('submitter').value = '';
+    document.getElementById('notes').value = '';
+    document.getElementById('photo-preview').style.display = 'none';
+    document.querySelector('.upload-text').style.display = 'block';
+    document.getElementById('photo-input').value = '';
+    selectedFile = null;
+
+    // Reload transactions
+    await loadTransactions();
+  }
+
+  function showMessage(text, type) {
+    const el = document.getElementById('form-message');
+    el.textContent = text;
+    el.className = 'message ' + type;
+    el.style.display = 'block';
+  }
+
+  function openLightbox(url) {
+    document.getElementById('lightbox-img').src = url;
+    document.getElementById('lightbox').classList.add('open');
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+  }
+
+  init();
+</script>
+</body>
+</html>
