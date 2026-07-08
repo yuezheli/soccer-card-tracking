@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CardTrack Admin</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -239,7 +239,7 @@
     <!-- QR Result -->
     <div class="qr-result" id="qr-result">
       <h3 id="qr-card-name"></h3>
-      <canvas id="qr-canvas"></canvas>
+      <div id="qr-canvas"></div>
       <div class="card-url" id="card-url-display"></div>
       <button class="btn-outline" onclick="downloadQR()">Download QR Code</button>
     </div>
@@ -324,10 +324,14 @@
     document.getElementById('qr-card-name').textContent = card.name;
     document.getElementById('card-url-display').textContent = cardUrl;
 
-    QRCode.toCanvas(document.getElementById('qr-canvas'), cardUrl, {
+    const canvas = document.getElementById('qr-canvas');
+    canvas.innerHTML = '';
+    new QRCode(canvas, {
+      text: cardUrl,
       width: 200,
-      margin: 2,
-      color: { dark: '#1a1a1a', light: '#ffffff' }
+      height: 200,
+      colorDark: '#1a1a1a',
+      colorLight: '#ffffff',
     });
 
     document.getElementById('qr-result').style.display = 'block';
